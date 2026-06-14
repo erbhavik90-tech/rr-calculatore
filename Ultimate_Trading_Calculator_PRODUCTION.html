@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ultimate Trading Calculator - Production</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f7f1e8;color:#333;margin:0}
+.wrap{max-width:1200px;margin:15px auto;padding:15px}
+.card{background:#fffaf3;border:1px solid #e5d6c3;border-radius:14px;padding:18px}
+h2{text-align:center;margin-top:0}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.result{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:15px}
+.box{background:white;border:1px solid #eadcc9;border-radius:10px;padding:12px}
+input,select,button{width:100%;padding:10px;box-sizing:border-box;border-radius:8px;border:1px solid #d6c2aa}
+button{cursor:pointer;background:#e9d7bd}
+.signal{font-size:22px;font-weight:bold;text-align:center;padding:12px;border-radius:10px;margin:10px 0}
+.green{background:#dff5df}.yellow{background:#fff6cc}.orange{background:#ffe3c2}.red{background:#ffd7d7}
+.footer{text-align:center;margin-top:12px;font-size:12px;color:#666}
+@media(max-width:850px){.row,.row2,.result{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<h2>📈 Ultimate Trading Calculator</h2>
+
+<div id="signal" class="signal">READY</div>
+
+<div class="row">
+<div><label>Account Size</label><input id="account" type="number"></div>
+<div><label>Risk %</label><input id="risk" type="number" step="0.1"></div>
+<div><label>Trade Type</label>
+<select id="side"><option>Long</option><option>Short</option></select></div>
+</div>
+
+<div class="row2">
+<div><label>Entry Price</label><input id="entry" type="number"></div>
+<div><label>Stop Loss</label><input id="sl" type="number"></div>
+</div>
+
+<div class="row2">
+<div><button onclick="copySetup()">📋 Copy Trade Setup</button></div>
+<div><button onclick="resetCalc()">🔄 Reset</button></div>
+</div>
+
+<div id="out" class="result"></div>
+
+<div class="footer">Ultimate Trading Calculator v1.0</div>
+</div>
+</div>
+
+<script>
+function loadSaved(){
+ account.value=localStorage.getItem('acc')||30000;
+ risk.value=localStorage.getItem('risk')||1;
+ entry.value=localStorage.getItem('entry')||1585;
+ sl.value=localStorage.getItem('sl')||1530;
+ calc();
+}
+
+function saveVals(){
+ localStorage.setItem('acc',account.value);
+ localStorage.setItem('risk',risk.value);
+ localStorage.setItem('entry',entry.value);
+ localStorage.setItem('sl',sl.value);
+}
+
+function calc(){
+ saveVals();
+
+ const acc=parseFloat(account.value)||0;
+ const riskPct=parseFloat(risk.value)||0;
+ const ep=parseFloat(entry.value)||0;
+ const slp=parseFloat(sl.value)||0;
+
+ const diff=Math.abs(ep-slp);
+ if(diff<=0||ep<=0){ return; }
+
+ const riskAmt=acc*riskPct/100;
+ const qty=Math.min(Math.floor(riskAmt/diff),Math.floor(acc/ep));
+ const capital=qty*ep;
+ const loss=qty*diff;
+
+ let t1,t2,t3;
+ if(side.value==="Long"){
+   t1=ep+2*diff; t2=ep+3*diff; t3=ep+5*diff;
+ } else {
+   t1=ep-2*diff; t2=ep-3*diff; t3=ep-5*diff;
+ }
+
+ const p1=Math.abs(t1-ep)*qty;
+ const p2=Math.abs(t2-ep)*qty;
+ const p3=Math.abs(t3-ep)*qty;
+
+ const m1=(Math.abs(t1-ep)/ep*100);
+ const m2=(Math.abs(t2-ep)/ep*100);
+ const m3=(Math.abs(t3-ep)/ep*100);
+
+ const riskDistance=(diff/ep*100);
+
+ let sig="🟡 GOOD TRADE", cls="yellow";
+ if(riskDistance<2 && m1<3){sig="🟢 STRONG TRADE";cls="green";}
+ else if(riskDistance>6 || m1>8){sig="🔴 RISKY TRADE";cls="red";}
+ else if(riskDistance>4 || m1>5){sig="🟠 AVERAGE TRADE";cls="orange";}
+
+ signal.className="signal "+cls;
+ signal.textContent=sig;
+
+ const used=(capital/acc*100)||0;
+ const free=100-used;
+
+ out.innerHTML=`
+ <div class="box">
+ <h3>Risk & Position</h3>
+ Risk Amount: ₹${riskAmt.toFixed(2)}<br>
+ Risk Per Share: ₹${diff.toFixed(2)}<br>
+ Quantity: <b>${qty}</b><br>
+ Capital Required: ₹${capital.toFixed(2)}<br>
+ <b>Total Loss If SL Hits: ₹${loss.toFixed(2)}</b><br>
+ Max Daily Loss (2R): ₹${(riskAmt*2).toFixed(2)}<br><br>
+ Capital Used: ${used.toFixed(2)}%<br>
+ Capital Free: ${free.toFixed(2)}%
+ </div>
+
+ <div class="box">
+ <h3>Target Analysis</h3>
+ <b>1:2 RR</b> → ₹${t1.toFixed(2)} | Profit ₹${p1.toFixed(2)} | Move ${m1.toFixed(2)}%<br><hr>
+ <b>1:3 RR</b> → ₹${t2.toFixed(2)} | Profit ₹${p2.toFixed(2)} | Move ${m2.toFixed(2)}%<br><hr>
+ <b>1:5 RR</b> → ₹${t3.toFixed(2)} | Profit ₹${p3.toFixed(2)} | Move ${m3.toFixed(2)}%
+ </div>`;
+}
+
+function copySetup(){
+ const txt=`Entry: ${entry.value}
+SL: ${sl.value}
+Risk: ${risk.value}%
+Type: ${side.value}`;
+ navigator.clipboard.writeText(txt);
+ alert("Trade setup copied");
+}
+
+function resetCalc(){
+ localStorage.clear();
+ account.value=30000;
+ risk.value=1;
+ entry.value="";
+ sl.value="";
+ calc();
+}
+
+['account','risk','entry','sl'].forEach(id=>{
+ document.getElementById(id).addEventListener('input',calc);
+});
+side.addEventListener('change',calc);
+
+loadSaved();
+</script>
+</body>
+</html>
